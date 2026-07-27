@@ -31,7 +31,13 @@ function ParamSlider({
         <Label className="text-[11px] font-normal text-muted-foreground">{label}</Label>
         <span className="font-mono text-[11px] text-primary">{value.toFixed(digits)}</span>
       </div>
-      <Slider min={min} max={max} step={step} value={[value]} onValueChange={([v]) => onChange(v)} />
+      <Slider
+        min={min}
+        max={max}
+        step={step}
+        value={[value]}
+        onValueChange={(v) => onChange(Array.isArray(v) ? v[0] : v)}
+      />
     </div>
   )
 }

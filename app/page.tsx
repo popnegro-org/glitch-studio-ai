@@ -1,16 +1,17 @@
-export default function Home() {
+import { Inspector } from '@/components/studio/inspector'
+import { MediaLibrary } from '@/components/studio/media-library'
+import { Toolbar } from '@/components/studio/toolbar'
+import { Viewport } from '@/components/studio/viewport'
+
+export default function StudioPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center font-sans">
-      <main className="flex w-full max-w-3xl flex-col items-center gap-8 px-6 py-16 text-center sm:items-start sm:text-left">
-        <div className="flex flex-col gap-4">
-          <h1 className="text-4xl font-bold tracking-tight">
-            glitchstudio
-          </h1>
-          <p className="max-w-md text-lg text-muted-foreground">
-            To get started, send a prompt or modify this page directly.
-          </p>
-        </div>
+    <div className="flex h-screen flex-col overflow-hidden font-sans">
+      <Toolbar />
+      <main className="flex min-h-0 flex-1">
+        <MediaLibrary />
+        <Viewport />
+        <Inspector />
       </main>
     </div>
-  );
+  )
 }

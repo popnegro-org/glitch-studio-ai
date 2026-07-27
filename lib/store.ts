@@ -137,5 +137,6 @@ export const useStudio = create<StudioState>((set, get) => ({
   togglePlaying: () => set((s) => ({ playing: !s.playing })),
   setAudioReactive: (audioReactive) => set({ audioReactive }),
   setAudioLevel: (audioLevel) => set({ audioLevel }),
-  setAiStatus: (aiStatus, aiNote) => set({ aiStatus, aiNote: aiNote ?? get().aiNote }),
+  setAiStatus: (aiStatus, aiNote) =>
+    set({ aiStatus, aiNote: aiNote === undefined ? get().aiNote : aiNote }),
 }))

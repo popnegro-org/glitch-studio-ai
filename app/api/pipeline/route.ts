@@ -62,7 +62,15 @@ export async function POST(req: Request) {
       })),
     })
   } catch (error) {
-    console.log('[v0] pipeline generation failed', error)
-    return Response.json({ error: 'Could not generate a pipeline' }, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    const billing = /credit card|customer_verification_required|quota|billing/i.test(message)
+    return Response.json(
+      {
+        error: billing
+          ? 'AI Gateway is not enabled for this account yet — add a card at vercel.com/ai to unlock free credits. Presets and manual stages still work.'
+          : `Pipeline generation failed: ${message.slice(0, 200)}`,
+      },
+      { status: 500 },
+    )
   }
 }

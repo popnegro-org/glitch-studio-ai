@@ -1,7 +1,6 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import { TooltipProvider } from '@/components/ui/tooltip'
 import './globals.css'
 
 const _geistSans = Geist({ subsets: ['latin'] })
@@ -12,23 +11,6 @@ export const metadata: Metadata = {
   description:
     'A GPU glitch laboratory: stack datamosh, pixel sorting, VHS, CRT and feedback stages on live video, drive them with audio, and export the damage.',
   generator: 'v0.app',
-  icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
-  },
 }
 
 export const viewport: Viewport = {
@@ -44,7 +26,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark bg-background">
       <body className="bg-background font-sans antialiased">
-        <TooltipProvider delayDuration={300}>{children}</TooltipProvider>
+        {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

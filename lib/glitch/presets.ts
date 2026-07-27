@@ -42,8 +42,8 @@ export const PRESETS: Preset[] = [
     name: 'Broken VHS',
     blurb: 'Rental tape watched one time too many.',
     chain: [
-      { effect: 'vhs', intensity: 0.95, params: { wobble: 0.55, bleed: 0.7, tracking: 0.5, noise: 0.4 } },
-      { effect: 'tape', intensity: 0.6 },
+      { effect: 'vhs', intensity: 0.95, params: { wobble: 0.55, bleed: 0.7, tracking: 0.5, noise: 0.18 } },
+      { effect: 'tape', intensity: 0.45 },
       { effect: 'scanlines', intensity: 0.5, params: { density: 520, strength: 0.45, roll: 0.4, interlace: 0.35 } },
       { effect: 'grade', intensity: 1, params: { hue: -0.1, sat: 0.85, contrast: 1.15, lift: 0.01 } },
     ],
@@ -66,7 +66,7 @@ export const PRESETS: Preset[] = [
     chain: [
       { effect: 'datamosh', intensity: 0.95, params: { corruption: 0.8, block: 34, persistence: 0.93, frequency: 0.7 } },
       { effect: 'liquid', intensity: 0.7, params: { scale: 2.2, strength: 0.1, speed: 0.2, swirl: 1.8 } },
-      { effect: 'grade', intensity: 1, params: { hue: 0.4, sat: 1.4, contrast: 1.1, lift: 0 } },
+      { effect: 'grade', intensity: 0.7, params: { hue: 0.12, sat: 1.25, contrast: 1.08, lift: 0 } },
     ],
   },
   {
