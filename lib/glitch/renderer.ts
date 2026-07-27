@@ -44,6 +44,7 @@ export class GlitchRenderer {
   private programs = new Map<string, Program>()
   private copy: Program
   private srcTex: WebGLTexture
+  private compileErrors = new Map<string, string>()
   private targets: Target[] = []
   private history: Target | null = null
   private width = 0
@@ -92,13 +93,16 @@ export class GlitchRenderer {
     if (cached) return cached
     const def = EFFECT_MAP[effectId]
     if (!def) return null
+    this.compileErrors.delete(effectId)
     const frag = `${SHADER_PRELUDE}\n${def.code}\nvoid main(){\n  vec3 base = texture2D(u_tex, vUv).rgb;\n  vec3 col = effect(vUv);\n  gl_FragColor = vec4(mix(base, col, u_amount), 1.0);\n}`
     try {
       const p = this.buildProgram(frag)
       this.programs.set(effectId, p)
       return p
     } catch (err) {
-      console.log('[v0] effect compile error', effectId, err)
+      const message = err instanceof Error ? err.message : String(err)
+      console.error(`[GlitchRenderer] effect compile error for "${effectId}":`, message)
+      this.compileErrors.set(effectId, message)
       return null
     }
   }
