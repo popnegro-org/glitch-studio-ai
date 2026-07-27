@@ -71,28 +71,31 @@ export function Toolbar() {
           </span>
         </div>
 
-        <form
-          className="flex min-w-64 flex-1 items-center gap-2"
-          onSubmit={(e) => {
-            e.preventDefault()
-            void generate(prompt)
-          }}
+        <div
+          className="flex min-w-64 flex-1 items-center gap-2 opacity-50 grayscale"
+          title="AI pipeline generation is temporarily disabled pending a refactor for the new graph architecture."
         >
-          <div className="relative flex-1">
-            <Sparkles className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-primary/70" />
-            <Input
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Describe a look — the model designs the effect chain"
-              className="h-8 bg-input pl-8 font-mono text-xs"
-              aria-label="Describe the look you want"
-            />
-          </div>
-          <Button type="submit" size="sm" disabled={thinking || !prompt.trim()} className="h-8 font-mono text-xs">
-            {thinking ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
-            {thinking ? 'Designing' : 'Generate'}
-          </Button>
-        </form>
+          <form
+            className="flex flex-1 items-center gap-2"
+            onSubmit={(e) => e.preventDefault()}
+          >
+            <div className="relative flex-1">
+              <Sparkles className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-primary/70" />
+              <Input
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="AI pipeline is currently disabled"
+                className="h-8 bg-input pl-8 font-mono text-xs"
+                aria-label="Describe the look you want"
+                disabled
+              />
+            </div>
+            <Button type="submit" size="sm" disabled className="h-8 font-mono text-xs pointer-events-none">
+              <Sparkles className="size-3.5" />
+              Generate
+            </Button>
+          </form>
+        </div>
 
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-1.5">
@@ -163,17 +166,14 @@ export function Toolbar() {
       )}
 
       {!aiNote && (
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="pointer-events-none flex flex-wrap items-center gap-1.5 opacity-50 grayscale">
           <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Try</span>
           {SUGGESTIONS.map((s) => (
             <button
               key={s}
               type="button"
-              onClick={() => {
-                setPrompt(s)
-                void generate(s)
-              }}
-              className="rounded-full border border-border px-2 py-0.5 font-mono text-[10px] text-muted-foreground transition-colors hover:border-primary/60 hover:text-primary"
+              disabled
+              className="rounded-full border border-border px-2 py-0.5 font-mono text-[10px] text-muted-foreground"
             >
               {s}
             </button>

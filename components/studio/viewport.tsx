@@ -1,12 +1,58 @@
 'use client'
 
-import { Camera, Circle, Expand, Pause, Play, Square } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Camera, Circle, Expand, Network, Pause, Play, Square } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { AudioAnalyser } from '@/lib/glitch/audio'
 import { GlitchRenderer } from '@/lib/glitch/renderer'
 import { SignalSource } from '@/lib/glitch/signal'
 import { useStudio } from '@/lib/store'
+import Graph from '@/components/studio/visual-editor/graph'
+import { type Graph as GraphData, type Node as GraphNode } from '@/lib/glitch/graph-types'
+import { GlitchNode } from '@/lib/glitch/types'
+import { EFFECT_MAP } from '@/lib/glitch/effects'
+
+// Kahn's algorithm for topological sort
+function topologicalSort(graph: GraphData): GraphNode[] {
+  const sorted: GraphNode[] = []
+  const inDegree = new Map<string, number>()
+  const adj = new Map<string, string[]>()
+
+  for (const node of graph.nodes) {
+    inDegree.set(node.id, 0)
+    adj.set(node.id, [])
+  }
+
+  for (const edge of graph.edges) {
+    adj.get(edge.sourceNodeId)?.push(edge.targetNodeId)
+    inDegree.set(edge.targetNodeId, (inDegree.get(edge.targetNodeId) ?? 0) + 1)
+  }
+
+  const queue = graph.nodes.filter((n) => inDegree.get(n.id) === 0)
+
+  while (queue.length > 0) {
+    const node = queue.shift()!
+    sorted.push(node)
+
+    for (const neighborId of adj.get(node.id) ?? []) {
+      const newInDegree = (inDegree.get(neighborId) ?? 1) - 1
+      inDegree.set(neighborId, newInDegree)
+      if (newInDegree === 0) {
+        const neighborNode = graph.nodes.find(n => n.id === neighborId)
+        if (neighborNode) queue.push(neighborNode)
+      }
+    }
+  }
+
+  // Basic cycle detection
+  if (sorted.length !== graph.nodes.length) {
+    console.error("Cycle detected in graph, topological sort failed.")
+    return []
+  }
+
+  return sorted
+}
+
 
 export function Viewport() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -22,6 +68,7 @@ export function Viewport() {
   const [recording, setRecording] = useState(false)
   const [recSeconds, setRecSeconds] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [vpeVisible, setVpeVisible] = useState(true)
 
   const activeMedia = useStudio((s) => s.activeMedia)
   const playing = useStudio((s) => s.playing)
@@ -29,7 +76,9 @@ export function Viewport() {
   const audioReactive = useStudio((s) => s.audioReactive)
   const setAudioReactive = useStudio((s) => s.setAudioReactive)
   const setAudioLevel = useStudio((s) => s.setAudioLevel)
-  const activeCount = useStudio((s) => s.chain.filter((n) => n.enabled).length)
+  const graph = useStudio((s) => s.graph)
+  
+  const activeCount = useMemo(() => graph.nodes.filter((n) => n.enabled && EFFECT_MAP[n.type]).length, [graph])
 
   /* ------------------------------------------------------------- engine boot */
   useEffect(() => {
@@ -79,7 +128,20 @@ export function Viewport() {
       if (state.activeMedia.kind === 'signal' && signalRef.current) {
         signalRef.current.draw(renderer.time, renderer.audioLevel)
       }
-      renderer.render(state.chain, now)
+      
+      const sortedGraphNodes = topologicalSort(state.graph);
+      const renderChain: GlitchNode[] = sortedGraphNodes
+        .filter(n => EFFECT_MAP[n.type])
+        .map(node => ({
+            id: node.id,
+            effect: node.type,
+            enabled: node.enabled ?? true,
+            intensity: node.intensity ?? 1,
+            audioMod: node.audioMod ?? 0,
+            params: node.params ?? {},
+        }));
+
+      renderer.render(renderChain, now)
 
       frames += 1
       acc += dt
@@ -260,6 +322,8 @@ export function Viewport() {
     void shellRef.current?.requestFullscreen?.()
   }
 
+  const toggleVpe = () => setVpeVisible((v) => !v)
+
   return (
     <section className="flex min-h-0 flex-1 flex-col gap-3 p-3">
       <div
@@ -268,6 +332,12 @@ export function Viewport() {
       >
         <canvas ref={canvasRef} className="h-full w-full" aria-label="Glitch render output" />
         <video ref={videoRef} playsInline muted className="sr-only" aria-hidden="true" />
+
+        {vpeVisible && (
+          <div className="absolute inset-0">
+            <Graph />
+          </div>
+        )}
 
         <div className="pointer-events-none absolute left-3 top-3 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.15em] text-primary/90">
           <span className="rounded bg-background/70 px-2 py-1 backdrop-blur">{activeMedia.label}</span>
@@ -307,7 +377,16 @@ export function Viewport() {
           <Camera className="size-3.5" />
           Frame PNG
         </Button>
-        <Button variant="ghost" size="sm" onClick={goFullscreen} className="font-mono text-xs">
+        <Button
+          variant={vpeVisible ? 'default' : 'secondary'}
+          size="sm"
+          onClick={toggleVpe}
+          className="font-mono text-xs"
+        >
+          <Network className="size-3.5" />
+          Editor
+        </Button>
+        <Button variant="ghost" size="sm" onClick={goFullscreen} className="ml-auto font-mono text-xs">
           <Expand className="size-3.5" />
           Live
         </Button>

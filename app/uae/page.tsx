@@ -1,11 +1,8 @@
-import React from 'react';
-
-const UaePage = () => {
+export default function UaePage() {
   return (
     <div>
       <h1>UAE Page</h1>
+      <p>Universal Audio Engine Interface</p>
     </div>
   );
-};
-
-export default UaePage;
+}

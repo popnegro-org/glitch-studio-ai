@@ -110,8 +110,7 @@ export class UAE {
     if (source.mediaStream) {
       const audioContext = new AudioContext();
       const sourceNode = audioContext.createMediaStreamSource(source.mediaStream);
-      const analyserNode = this.audioAnalyzer.getAnalyserNode();
-      sourceNode.connect(analyserNode);
+      this.audioAnalyzer.connectSource(sourceNode);
     }
   }
 

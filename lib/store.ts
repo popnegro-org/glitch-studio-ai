@@ -2,8 +2,8 @@
 
 import { create } from 'zustand'
 import { defaultParams, EFFECT_MAP } from './glitch/effects'
-import { chainFromStages, nodeId, PRESETS, type PresetStage } from './glitch/presets'
-import type { GlitchNode, RandomMode, SourceKind } from './glitch/types'
+import { type RandomMode, type SourceKind } from './glitch/types'
+import { type Edge, type Node, type Graph } from './glitch/graph-types'
 
 export type MediaItem = {
   id: string
@@ -22,29 +22,24 @@ const BUILT_IN_MEDIA: MediaItem[] = [
 type StudioState = {
   media: MediaItem[]
   activeMedia: MediaItem
-  chain: GlitchNode[]
-  selectedId: string | null
   seed: number
   randomMode: RandomMode
   playing: boolean
   audioReactive: boolean
   audioLevel: number
-  activePreset: string | null
   aiStatus: 'idle' | 'thinking' | 'error'
   aiNote: string | null
 
+  graph: Graph
+  selectedNodeId: string | null
+  addNode: (node: Node) => void
+  moveNode: (nodeId: string, position: { x: number; y: number }) => void
+  selectNode: (nodeId: string | null) => void
+  updateNode: (nodeId: string, patch: Partial<Node>) => void
+  removeNode: (nodeId: string) => void
+
   setActiveMedia: (item: MediaItem) => void
   addMedia: (item: MediaItem) => void
-  addEffect: (effect: string) => void
-  removeNode: (id: string) => void
-  toggleNode: (id: string) => void
-  selectNode: (id: string | null) => void
-  moveNode: (id: string, dir: -1 | 1) => void
-  updateParam: (id: string, key: string, value: number) => void
-  updateNode: (id: string, patch: Partial<GlitchNode>) => void
-  clearChain: () => void
-  loadPreset: (presetId: string) => void
-  applyStages: (stages: PresetStage[], note?: string) => void
   setSeed: (seed: number) => void
   rollSeed: () => void
   setRandomMode: (mode: RandomMode) => void
@@ -54,82 +49,64 @@ type StudioState = {
   setAiStatus: (status: 'idle' | 'thinking' | 'error', note?: string | null) => void
 }
 
-const initialChain = chainFromStages(PRESETS[0].chain)
+const initialGraph: Graph = {
+  nodes: [
+    { id: 'audio-input', type: 'audio-input', position: { x: 100, y: 100 }, enabled: true },
+    { id: 'beat-detector', type: 'beat-detector', position: { x: 300, y: 100 }, enabled: true },
+    { id: 'low-frequencies', type: 'low-frequencies', position: { x: 500, y: 100 }, enabled: true },
+    { id: 'datamosh', type: 'datamosh', position: { x: 700, y: 100 }, enabled: true, intensity: 0.8, audioMod: 0, params: defaultParams('datamosh') },
+    { id: 'rgb-split', type: 'rgb-split', position: { x: 700, y: 200 }, enabled: true, intensity: 0.8, audioMod: 0, params: defaultParams('rgb-split') },
+    { id: 'pixel-sort', type: 'pixel-sort', position: { x: 700, y: 300 }, enabled: true, intensity: 0.8, audioMod: 0, params: defaultParams('pixel-sort') },
+    { id: 'bloom', type: 'bloom', position: { x: 700, y: 400 }, enabled: true, intensity: 0.8, audioMod: 0, params: defaultParams('bloom') },
+  ],
+  edges: [
+    { id: 'e1', sourceNodeId: 'audio-input', sourceOutputName: 'out', targetNodeId: 'beat-detector', targetInputName: 'in' },
+    { id: 'e2', sourceNodeId: 'beat-detector', sourceOutputName: 'out', targetNodeId: 'low-frequencies', targetInputName: 'in' },
+    { id: 'e3', sourceNodeId: 'low-frequencies', sourceOutputName: 'out', targetNodeId: 'datamosh', targetInputName: 'intensity' },
+    { id: 'e4', sourceNodeId: 'low-frequencies', sourceOutputName: 'out', targetNodeId: 'rgb-split', targetInputName: 'in' },
+    { id: 'e5', sourceNodeId: 'low-frequencies', sourceOutputName: 'out', targetNodeId: 'pixel-sort', targetInputName: 'in' },
+    { id: 'e6', sourceNodeId: 'low-frequencies', sourceOutputName: 'out', targetNodeId: 'bloom', targetInputName: 'in' },
+  ],
+};
 
 export const useStudio = create<StudioState>((set, get) => ({
   media: BUILT_IN_MEDIA,
   activeMedia: BUILT_IN_MEDIA[0],
-  chain: initialChain,
-  selectedId: initialChain[0]?.id ?? null,
   seed: 1337,
   randomMode: 'deterministic',
   playing: true,
   audioReactive: false,
   audioLevel: 0,
-  activePreset: PRESETS[0].id,
   aiStatus: 'idle',
   aiNote: null,
+  graph: initialGraph,
+  selectedNodeId: null,
+
+  addNode: (node) => set(state => ({ graph: { ...state.graph, nodes: [...state.graph.nodes, node] } })),
+  moveNode: (nodeId, position) => set(state => ({
+    graph: {
+      ...state.graph,
+      nodes: state.graph.nodes.map(n => n.id === nodeId ? { ...n, position } : n),
+    }
+  })),
+  selectNode: (nodeId) => set({ selectedNodeId: nodeId }),
+  updateNode: (nodeId, patch) => set(state => ({
+    graph: {
+      ...state.graph,
+      nodes: state.graph.nodes.map(n => n.id === nodeId ? { ...n, ...patch } : n),
+    }
+  })),
+   removeNode: (nodeId) => set(state => ({
+    graph: {
+      ...state.graph,
+      nodes: state.graph.nodes.filter(n => n.id !== nodeId),
+      edges: state.graph.edges.filter(e => e.sourceNodeId !== nodeId && e.targetNodeId !== nodeId),
+    },
+    selectedNodeId: state.selectedNodeId === nodeId ? null : state.selectedNodeId,
+  })),
 
   setActiveMedia: (item) => set({ activeMedia: item }),
   addMedia: (item) => set((s) => ({ media: [item, ...s.media], activeMedia: item })),
-
-  addEffect: (effect) => {
-    if (!EFFECT_MAP[effect]) return
-    const node: GlitchNode = {
-      id: nodeId(),
-      effect,
-      enabled: true,
-      intensity: 0.8,
-      audioMod: 0,
-      params: defaultParams(effect),
-    }
-    set((s) => ({ chain: [...s.chain, node], selectedId: node.id, activePreset: null }))
-  },
-
-  removeNode: (id) =>
-    set((s) => {
-      const chain = s.chain.filter((n) => n.id !== id)
-      return { chain, selectedId: s.selectedId === id ? (chain[chain.length - 1]?.id ?? null) : s.selectedId, activePreset: null }
-    }),
-
-  toggleNode: (id) =>
-    set((s) => ({ chain: s.chain.map((n) => (n.id === id ? { ...n, enabled: !n.enabled } : n)) })),
-
-  selectNode: (id) => set({ selectedId: id }),
-
-  moveNode: (id, dir) =>
-    set((s) => {
-      const i = s.chain.findIndex((n) => n.id === id)
-      const j = i + dir
-      if (i < 0 || j < 0 || j >= s.chain.length) return s
-      const chain = [...s.chain]
-      ;[chain[i], chain[j]] = [chain[j], chain[i]]
-      return { chain, activePreset: null }
-    }),
-
-  updateParam: (id, key, value) =>
-    set((s) => ({
-      chain: s.chain.map((n) => (n.id === id ? { ...n, params: { ...n.params, [key]: value } } : n)),
-    })),
-
-  updateNode: (id, patch) =>
-    set((s) => ({ chain: s.chain.map((n) => (n.id === id ? { ...n, ...patch } : n)) })),
-
-  clearChain: () => set({ chain: [], selectedId: null, activePreset: null }),
-
-  loadPreset: (presetId) => {
-    const preset = PRESETS.find((p) => p.id === presetId)
-    if (!preset) return
-    const chain = chainFromStages(preset.chain)
-    set({ chain, selectedId: chain[0]?.id ?? null, activePreset: preset.id, aiNote: null })
-  },
-
-  applyStages: (stages, note) => {
-    const valid = stages.filter((s) => EFFECT_MAP[s.effect])
-    if (!valid.length) return
-    const chain = chainFromStages(valid)
-    set({ chain, selectedId: chain[0]?.id ?? null, activePreset: null, aiNote: note ?? null })
-  },
 
   setSeed: (seed) => set({ seed }),
   rollSeed: () => set({ seed: Math.floor(Math.random() * 9999) }),
@@ -140,3 +117,4 @@ export const useStudio = create<StudioState>((set, get) => ({
   setAiStatus: (aiStatus, aiNote) =>
     set({ aiStatus, aiNote: aiNote === undefined ? get().aiNote : aiNote }),
 }))
+
